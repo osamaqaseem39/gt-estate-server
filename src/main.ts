@@ -8,14 +8,41 @@ import * as compression from 'compression';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Security middleware
-  app.use(helmet());
+  // Security middleware (allow cross-origin API requests from dashboard/website)
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
   app.use(compression());
 
-  // CORS
+  // CORS – allow website, dashboard (local + Vercel production)
+  const corsEnv = process.env.CORS_ORIGINS?.trim();
+  const allowedList = corsEnv
+    ? corsEnv === '*' || corsEnv === 'true'
+      ? null
+      : corsEnv.split(',').map((o) => o.trim()).filter(Boolean)
+    : null;
+
+  const originFn = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    if (!origin) return callback(null, true); // same-origin or non-browser
+    if (allowedList === null && !corsEnv) {
+      // Default: localhost + *.vercel.app
+      const ok =
+        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
+        /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin);
+      return callback(null, ok);
+    }
+    if (allowedList === null) return callback(null, true); // CORS_ORIGINS=*
+    callback(null, allowedList.includes(origin));
+  };
+
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:3001'],
+    origin: allowedList === null && (corsEnv === '*' || corsEnv === 'true') ? true : originFn,
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   // Global validation pipe
