@@ -25,13 +25,25 @@ async function bootstrap() {
       : corsEnv.split(',').map((o) => o.trim()).filter(Boolean)
     : null;
 
+  const isVercelPreviewOrProduction = (origin: string) => {
+    try {
+      const { protocol, hostname } = new URL(origin);
+      return (
+        protocol === 'https:' &&
+        (hostname === 'vercel.app' || hostname.endsWith('.vercel.app'))
+      );
+    } catch {
+      return false;
+    }
+  };
+
   const originFn = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     if (!origin) return callback(null, true); // same-origin or non-browser
     if (allowedList === null && !corsEnv) {
-      // Default: localhost + *.vercel.app
+      // Default: localhost + any https://*.vercel.app (e.g. gt-estate-server-zhly.vercel.app)
       const ok =
         /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
-        /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin);
+        isVercelPreviewOrProduction(origin);
       return callback(null, ok);
     }
     if (allowedList === null) return callback(null, true); // CORS_ORIGINS=*
@@ -42,7 +54,7 @@ async function bootstrap() {
     origin: allowedList === null && (corsEnv === '*' || corsEnv === 'true') ? true : originFn,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
   });
 
   // Global validation pipe
