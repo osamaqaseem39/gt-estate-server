@@ -55,7 +55,8 @@ export class HealthController {
 
   private async checkDatabase(): Promise<boolean> {
     try {
-      await this.prisma.$queryRaw`SELECT 1`;
+      // Works with MongoDB and SQL (no raw provider-specific queries)
+      await this.prisma.user.findFirst({ take: 1 });
       return true;
     } catch {
       return false;
