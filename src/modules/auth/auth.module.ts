@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
+import { resolveJwtSecret } from '../../common/auth/resolve-jwt-secret';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -15,10 +16,10 @@ import { UsersModule } from '../users/users.module';
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const secret = configService.get<string>('JWT_SECRET');
+        const secret = resolveJwtSecret(configService);
         if (!secret) {
           throw new Error(
-            'JWT_SECRET is not set. Add it under Environment Variables in Vercel (or .env locally). Use a long random string.',
+            'No JWT signing secret found. In Vercel: Project → Settings → Environment Variables → add JWT_SECRET (or AUTH_JWT_SECRET) for Production, save, then Redeploy. Use a long random string (e.g. openssl rand -base64 32).',
           );
         }
         return {
